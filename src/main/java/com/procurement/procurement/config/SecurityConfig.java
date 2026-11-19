@@ -1,6 +1,8 @@
 package com.procurement.procurement.config;
 
 import com.procurement.procurement.security.CustomUserDetailsService;
+import com.procurement.procurement.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,6 +14,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -19,83 +23,116 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                // Disable CSRF (demo project)
+                // Disable CSRF for REST and demo compatibility
                 .csrf(csrf -> csrf.disable())
 
-                // Session based authentication
+                // Session management (IF_REQUIRED supports both web sessions and stateless REST tokens)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Public
+                        // 1. Static resources and public web login
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**")
                         .permitAll()
 
-                        // Dashboard
+                        // 2. REST Authentication API endpoints
+                        .requestMatchers("/api/auth/**")
+                        .permitAll()
+
+                        // 3. Swagger / OpenAPI documentation (Admin & Procurement Manager only)
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
+                        .hasAnyRole("ADMIN", "PROCUREMENT_MANAGER")
+
+                        // 4. Dashboard (Web)
                         .requestMatchers("/dashboard")
                         .authenticated()
 
-                        // Vendor Delete strictly Admin only
+                        // 5. Vendor Management
                         .requestMatchers("/vendor/delete/**")
                         .hasRole("ADMIN")
-
-                        // Vendor
-                        .requestMatchers("/vendor/**")
+                        .requestMatchers("/vendor/**", "/api/vendor/**")
                         .hasAnyRole("ADMIN", "PROCUREMENT_MANAGER")
 
-                        // Requisition
-                        .requestMatchers("/requisition/**")
-                        .hasAnyRole("ADMIN", "EMPLOYEE", "PROCUREMENT_MANAGER")
+                        // 6. Requisition Management
+                        .requestMatchers("/requisition/**", "/api/procurement/requisition/**")
+                        .hasAnyRole("ADMIN", "PROCUREMENT_MANAGER", "EMPLOYEE")
 
-                        // Approval
-                        .requestMatchers("/approval/**")
+                        // 7. Approval Center (Admin & Procurement Manager only)
+                        .requestMatchers("/approval/**", "/api/procurement/approval/**")
                         .hasAnyRole("ADMIN", "PROCUREMENT_MANAGER")
 
-                        // Purchase Order
-                        .requestMatchers("/purchase-order/**")
+                        // 8. Purchase Order Management (Admin & Procurement Manager only)
+                        .requestMatchers("/purchase-order/**", "/api/procurement/purchase-order/**")
                         .hasAnyRole("ADMIN", "PROCUREMENT_MANAGER")
 
-                        // ✅ REPORT API (IMPORTANT)
+                        // 9. Reporting APIs
                         .requestMatchers("/api/reports/**")
                         .hasAnyRole("ADMIN", "PROCUREMENT_MANAGER")
 
-                        // Everything else
+                        // 10. Any other request
                         .anyRequest()
                         .authenticated()
                 )
 
+                // Thymeleaf form login
                 .formLogin(form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/dashboard", true)
                         .permitAll()
                 )
 
+                // Logout configuration
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .logoutSuccessUrl("/login")
                         .permitAll()
                 )
 
+                // Hybrid Exception Handling: JSON 401/403 for /api/**, redirect for Web
                 .exceptionHandling(ex -> ex
-                        .accessDeniedPage("/dashboard")
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (request.getRequestURI().startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType("application/json");
+                                response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication required or token expired\"}");
+                                response.getWriter().flush();
+                            } else {
+                                response.sendRedirect("/login");
+                            }
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            if (request.getRequestURI().startsWith("/api/")) {
+                                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                response.setContentType("application/json");
+                                response.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
+                                response.getWriter().flush();
+                            } else {
+                                response.sendRedirect("/dashboard");
+                            }
+                        })
                 )
+
+                // Register JWT authentication filter before UsernamePasswordAuthenticationFilter
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .userDetailsService(userDetailsService);
 
         return http.build();
     }
 
-    // Required for AuthenticationManager injection
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration config) throws Exception {

@@ -24,7 +24,7 @@ public class RequisitionWebController {
     @GetMapping
     public String requisitionPage(Model model) {
 
-        List<Requisition> requisitions = requisitionService.getAllRequisitions();
+        List<Requisition> requisitions = requisitionService.getRequisitionsForCurrentUser();
         model.addAttribute("requisitions", requisitions);
 
         return "requisition";

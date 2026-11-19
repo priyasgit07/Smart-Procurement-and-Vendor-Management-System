@@ -1,75 +1,75 @@
 package com.procurement.procurement.controller.procurement;
 
+import com.procurement.procurement.dto.procurement.PurchaseOrderRequestDTO;
+import com.procurement.procurement.dto.procurement.PurchaseOrderResponseDTO;
 import com.procurement.procurement.entity.procurement.PurchaseOrder;
-import com.procurement.procurement.entity.procurement.PurchaseOrderItem;
-import com.procurement.procurement.repository.procurement.PurchaseOrderRepository;
-import com.procurement.procurement.repository.procurement.PurchaseOrderItemRepository;
+import com.procurement.procurement.entity.procurement.Requisition;
+import com.procurement.procurement.entity.vendor.Vendor;
+import com.procurement.procurement.mapper.PurchaseOrderMapper;
+import com.procurement.procurement.service.procurement.PurchaseOrderService;
+import com.procurement.procurement.service.procurement.RequisitionService;
+import com.procurement.procurement.service.vendor.VendorService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/procurement/purchase-order")
+@PreAuthorize("hasAnyRole('ADMIN', 'PROCUREMENT_MANAGER')")
 public class PurchaseOrderController {
 
-    private final PurchaseOrderRepository purchaseOrderRepository;
-    private final PurchaseOrderItemRepository purchaseOrderItemRepository;
+    private final PurchaseOrderService purchaseOrderService;
+    private final VendorService vendorService;
+    private final RequisitionService requisitionService;
 
-    public PurchaseOrderController(PurchaseOrderRepository purchaseOrderRepository,
-                                   PurchaseOrderItemRepository purchaseOrderItemRepository) {
-        this.purchaseOrderRepository = purchaseOrderRepository;
-        this.purchaseOrderItemRepository = purchaseOrderItemRepository;
+    public PurchaseOrderController(PurchaseOrderService purchaseOrderService,
+                                   VendorService vendorService,
+                                   RequisitionService requisitionService) {
+        this.purchaseOrderService = purchaseOrderService;
+        this.vendorService = vendorService;
+        this.requisitionService = requisitionService;
     }
 
     // ===================== Create Purchase Order =====================
     @PostMapping("/create")
-    public ResponseEntity<PurchaseOrder> createPurchaseOrder(@RequestBody PurchaseOrder purchaseOrder) {
-        // Save purchase order first
-        PurchaseOrder po = purchaseOrderRepository.save(purchaseOrder);
+    public ResponseEntity<PurchaseOrderResponseDTO> createPurchaseOrder(@Valid @RequestBody PurchaseOrderRequestDTO request) {
+        Vendor vendor = vendorService.getVendorById(request.getVendorId());
+        PurchaseOrder po = PurchaseOrderMapper.toEntity(request, vendor);
 
-        // Save items if present
-        if (po.getItems() != null) {
-            for (PurchaseOrderItem item : po.getItems()) {
-                item.setPurchaseOrder(po);
-                purchaseOrderItemRepository.save(item);
-            }
+        if (request.getRequisitionId() != null) {
+            Requisition req = requisitionService.getRequisitionById(request.getRequisitionId());
+            po.setRequisition(req);
         }
 
-        return ResponseEntity.ok(po);
+        PurchaseOrder saved = purchaseOrderService.createPurchaseOrder(po);
+        return ResponseEntity.ok(PurchaseOrderMapper.toResponseDTO(saved));
     }
 
     // ===================== Get all Purchase Orders =====================
     @GetMapping("/all")
-    public ResponseEntity<List<PurchaseOrder>> getAllPurchaseOrders() {
-        List<PurchaseOrder> orders = purchaseOrderRepository.findAll();
-        return ResponseEntity.ok(orders);
+    public ResponseEntity<List<PurchaseOrderResponseDTO>> getAllPurchaseOrders() {
+        List<PurchaseOrderResponseDTO> list = purchaseOrderService.getAllPurchaseOrders().stream()
+                .map(PurchaseOrderMapper::toResponseDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(list);
     }
 
     // ===================== Get Purchase Order by ID =====================
     @GetMapping("/{id}")
-    public ResponseEntity<?> getPurchaseOrderById(@PathVariable Long id) {
-        Optional<PurchaseOrder> poOpt = purchaseOrderRepository.findById(id);
-        if (poOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Purchase Order not found");
-        }
-        return ResponseEntity.ok(poOpt.get());
+    public ResponseEntity<PurchaseOrderResponseDTO> getPurchaseOrderById(@PathVariable Long id) {
+        PurchaseOrder po = purchaseOrderService.getPurchaseOrderById(id);
+        return ResponseEntity.ok(PurchaseOrderMapper.toResponseDTO(po));
     }
 
     // ===================== Update Purchase Order Status =====================
     @PatchMapping("/update-status/{id}")
     public ResponseEntity<String> updateStatus(@PathVariable Long id,
                                                @RequestParam String status) {
-        Optional<PurchaseOrder> poOpt = purchaseOrderRepository.findById(id);
-        if (poOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body("Purchase Order not found");
-        }
-
-        PurchaseOrder po = poOpt.get();
-        po.setStatus(status);
-        purchaseOrderRepository.save(po);
-
-        return ResponseEntity.ok("Purchase Order status updated to " + status);
+        PurchaseOrder updated = purchaseOrderService.updatePurchaseOrderStatus(id, status);
+        return ResponseEntity.ok("Purchase Order status updated to " + updated.getStatus());
     }
 }

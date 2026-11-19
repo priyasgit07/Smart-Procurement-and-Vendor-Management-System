@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Purchase Orders | Smart Procurement</title><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<title>Purchase Orders | Smart Procurement</title><link rel="stylesheet" th:href="@{/css/style.css}"><script th:src="@{/js/currency.js}"></script></head>
 <body><div class="app-shell">
 <aside class="sidebar"><div class="brand"><div class="brand-row"><span class="brand-mark">SP</span><div><h1>Smart Procurement</h1><p>Vendor Management System</p></div></div></div>
 <nav class="nav">
@@ -33,7 +33,7 @@
         </div>
         <div class="field full"><label>Product / Item Name</label><input type="text" name="productName" placeholder="e.g. Dell PowerEdge Server" required></div>
         <div class="field"><label>Quantity</label><input type="number" name="quantity" min="1" value="1" required></div>
-        <div class="field"><label>Unit Price ($)</label><input type="number" step="0.01" min="0" name="unitPrice" placeholder="0.00" value="0.00" required></div>
+        <div class="field"><label>Unit Price (₹)</label><input type="number" step="0.01" min="0" name="unitPrice" placeholder="0.00" value="0.00" required></div>
     </div>
     <div class="form-actions"><button class="btn btn-primary" type="submit">＋ Create Purchase Order</button></div>
 </form>
@@ -47,8 +47,8 @@
         <th>Vendor</th>
         <th>Product / Item</th>
         <th>Qty</th>
-        <th>Unit Price</th>
-        <th>Total Value</th>
+        <th>Unit Price (₹)</th>
+        <th>Total Value (₹)</th>
         <th>Created At</th>
         <th>Status</th>
     </tr>
@@ -75,11 +75,11 @@
         <span th:if="${#lists.isEmpty(po.items)}" class="muted">-</span>
     </td>
     <td>
-        <span th:each="item : ${po.items}" th:text="'$' + ${#numbers.formatDecimal(item.unitPrice, 1, 2)}">$0.00</span>
+        <span th:each="item : ${po.items}" th:text="${@currencyUtil.formatINR(item.unitPrice)}">₹0.00</span>
         <span th:if="${#lists.isEmpty(po.items)}" class="muted">-</span>
     </td>
     <td>
-        <span th:each="item : ${po.items}" th:text="'$' + ${#numbers.formatDecimal(item.quantity * item.unitPrice, 1, 2)}">$0.00</span>
+        <span th:each="item : ${po.items}" th:text="${@currencyUtil.formatINR(item.quantity * item.unitPrice)}">₹0.00</span>
         <span th:if="${#lists.isEmpty(po.items)}" class="muted">-</span>
     </td>
     <td>

@@ -1,13 +1,26 @@
-// Requisition request DTO
 package com.procurement.procurement.dto.procurement;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
 public class RequisitionRequestDTO {
 
+    @NotBlank(message = "Requisition number is required")
+    @Size(max = 50, message = "Requisition number cannot exceed 50 characters")
     private String requisitionNumber;
+
     private Long requestedByUserId;
-    private String status;  // e.g., PENDING, APPROVED
+    private String status;
+
+    @NotEmpty(message = "Requisition must contain at least one item")
+    @Valid
     private List<RequisitionItemDTO> items;
 
     public RequisitionRequestDTO() {
@@ -55,16 +68,28 @@ public class RequisitionRequestDTO {
 
     // ===================== Inner DTO for Requisition Items =====================
     public static class RequisitionItemDTO {
+
+        @NotBlank(message = "Item name is required")
+        @Size(max = 100, message = "Item name cannot exceed 100 characters")
         private String itemName;
+
+        @NotNull(message = "Quantity is required")
+        @Positive(message = "Quantity must be greater than zero")
         private Integer quantity;
+
+        @PositiveOrZero(message = "Unit price cannot be negative")
+        private Double unitPrice = 0.0;
+
+        @Size(max = 255, message = "Description cannot exceed 255 characters")
         private String description;
 
         public RequisitionItemDTO() {
         }
 
-        public RequisitionItemDTO(String itemName, Integer quantity, String description) {
+        public RequisitionItemDTO(String itemName, Integer quantity, Double unitPrice, String description) {
             this.itemName = itemName;
             this.quantity = quantity;
+            this.unitPrice = unitPrice;
             this.description = description;
         }
 
@@ -82,6 +107,14 @@ public class RequisitionRequestDTO {
 
         public void setQuantity(Integer quantity) {
             this.quantity = quantity;
+        }
+
+        public Double getUnitPrice() {
+            return unitPrice;
+        }
+
+        public void setUnitPrice(Double unitPrice) {
+            this.unitPrice = unitPrice;
         }
 
         public String getDescription() {

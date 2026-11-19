@@ -7,7 +7,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "requisitions")
+@Table(name = "requisitions", indexes = {
+        @Index(name = "idx_requisition_number", columnList = "requisitionNumber"),
+        @Index(name = "idx_requisition_requested_by", columnList = "requested_by")
+})
 public class Requisition {
 
     @Id
@@ -98,7 +101,7 @@ public class Requisition {
     }
 
     public void setItems(List<RequisitionItem> items) {
-        this.items = items;
+        this.items = items != null ? new java.util.ArrayList<>(items) : new java.util.ArrayList<>();
     }
 
     public List<Approval> getApprovals() {
@@ -106,6 +109,6 @@ public class Requisition {
     }
 
     public void setApprovals(List<Approval> approvals) {
-        this.approvals = approvals;
+        this.approvals = approvals != null ? new java.util.ArrayList<>(approvals) : new java.util.ArrayList<>();
     }
 }

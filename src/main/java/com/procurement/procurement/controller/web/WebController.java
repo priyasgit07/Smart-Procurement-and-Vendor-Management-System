@@ -34,7 +34,7 @@ public class WebController {
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
         model.addAttribute("vendorCount", vendorService.getAllVendors().size());
-        model.addAttribute("requisitionCount", requisitionService.getAllRequisitions().size());
+        model.addAttribute("requisitionCount", requisitionService.getRequisitionsForCurrentUser().size());
         model.addAttribute("poCount", purchaseOrderService.getAllPurchaseOrders().size());
 
         long pendingApprovals = approvalService.getAllApprovals().stream()

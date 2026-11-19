@@ -20,5 +20,9 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
     // Check if vendor exists by name
     boolean existsByName(String name);
 
+    boolean existsByEmail(String email);
+
+    Optional<Vendor> findByEmail(String email);
+
     List<Vendor> findByNameContainingIgnoreCase(String name);
 }

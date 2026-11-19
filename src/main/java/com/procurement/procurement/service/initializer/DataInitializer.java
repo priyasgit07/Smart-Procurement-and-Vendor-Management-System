@@ -4,6 +4,9 @@ import com.procurement.procurement.entity.user.Role;
 import com.procurement.procurement.entity.user.User;
 import com.procurement.procurement.repository.user.RoleRepository;
 import com.procurement.procurement.repository.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -14,9 +17,23 @@ import java.util.Set;
 @Component
 public class DataInitializer implements CommandLineRunner {
 
+    private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
+
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.seed-demo-users:false}")
+    private boolean seedDemoUsers;
+
+    @Value("${app.demo-admin-password:}")
+    private String adminPassword;
+
+    @Value("${app.demo-manager-password:}")
+    private String managerPassword;
+
+    @Value("${app.demo-employee-password:}")
+    private String employeePassword;
 
     public DataInitializer(RoleRepository roleRepository,
                            UserRepository userRepository,
@@ -30,7 +47,6 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
 
         // ================= ROLES =================
-
         Role adminRole = roleRepository.findByName("ROLE_ADMIN")
                 .orElseGet(() -> roleRepository.save(
                         new Role("ROLE_ADMIN", "System Administrator")
@@ -46,32 +62,42 @@ public class DataInitializer implements CommandLineRunner {
                         new Role("ROLE_EMPLOYEE", "Normal Employee")
                 ));
 
-        System.out.println("Roles Initialized");
+        logger.info("Application roles verified/initialized: ROLE_ADMIN, ROLE_PROCUREMENT_MANAGER, ROLE_EMPLOYEE");
 
-        // ================= ADMIN =================
+        // ================= DEMO USERS (Configurable via Environment) =================
+        if (!seedDemoUsers) {
+            logger.info("Demo user seeding is disabled (app.seed-demo-users=false).");
+            return;
+        }
+
+        logger.info("Demo user seeding is enabled. Initializing configured demo accounts...");
 
         if (userRepository.findByUsername("admin").isEmpty()) {
-            createUser("admin", "admin123", "admin@procurement.com", adminRole);
+            if (adminPassword != null && !adminPassword.trim().isEmpty()) {
+                createUser("admin", adminPassword.trim(), "admin@procurement.com", adminRole);
+                logger.info("Demo account 'admin' created.");
+            } else {
+                logger.warn("Skipping demo 'admin' creation: DEMO_ADMIN_PASSWORD is not configured.");
+            }
         }
-
-        // ================= MANAGER =================
 
         if (userRepository.findByUsername("manager").isEmpty()) {
-            createUser("manager", "manager123", "manager@procurement.com", managerRole);
+            if (managerPassword != null && !managerPassword.trim().isEmpty()) {
+                createUser("manager", managerPassword.trim(), "manager@procurement.com", managerRole);
+                logger.info("Demo account 'manager' created.");
+            } else {
+                logger.warn("Skipping demo 'manager' creation: DEMO_MANAGER_PASSWORD is not configured.");
+            }
         }
-
-        // ================= EMPLOYEE =================
 
         if (userRepository.findByUsername("employee").isEmpty()) {
-            createUser("employee", "employee123", "employee@procurement.com", employeeRole);
+            if (employeePassword != null && !employeePassword.trim().isEmpty()) {
+                createUser("employee", employeePassword.trim(), "employee@procurement.com", employeeRole);
+                logger.info("Demo account 'employee' created.");
+            } else {
+                logger.warn("Skipping demo 'employee' creation: DEMO_EMPLOYEE_PASSWORD is not configured.");
+            }
         }
-
-        System.out.println("===================================");
-        System.out.println("DEFAULT LOGIN CREDENTIALS:");
-        System.out.println("ADMIN     → admin / admin123");
-        System.out.println("MANAGER   → manager / manager123");
-        System.out.println("EMPLOYEE  → employee / employee123");
-        System.out.println("===================================");
     }
 
     private void createUser(String username, String password, String email, Role role) {

@@ -1,6 +1,8 @@
 package com.procurement.procurement.service.report;
 
 import com.procurement.procurement.entity.vendor.Vendor;
+import com.procurement.procurement.exception.BusinessException;
+import com.procurement.procurement.exception.ResourceNotFoundException;
 import com.procurement.procurement.repository.vendor.VendorRepository;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
@@ -9,6 +11,8 @@ import net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter;
 import net.sf.jasperreports.engine.xml.JRXmlLoader;
 import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +26,8 @@ import java.util.Map;
 @Service
 public class ReportService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReportService.class);
+
     private final VendorRepository vendorRepository;
 
     public ReportService(VendorRepository vendorRepository) {
@@ -33,7 +39,7 @@ public class ReportService {
         try {
             // Fetch only the selected vendor from the database.
             Vendor vendor = vendorRepository.findById(vendorId)
-                    .orElseThrow(() -> new RuntimeException("Vendor not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Vendor not found with id: " + vendorId));
 
             // JasperReports expects a collection as its data source.
             List<Vendor> vendors = Collections.singletonList(vendor);
@@ -74,9 +80,11 @@ public class ReportService {
             // Export to PDF by default.
             return JasperExportManager.exportReportToPdf(jasperPrint);
 
+        } catch (ResourceNotFoundException e) {
+            throw e;
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Vendor report generation failed", e);
+            logger.error("Vendor report generation failed for vendor ID: {}", vendorId, e);
+            throw new BusinessException("Vendor report generation failed: " + e.getMessage());
         }
     }
 }

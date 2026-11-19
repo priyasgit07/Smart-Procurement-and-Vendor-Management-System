@@ -5,7 +5,10 @@ import jakarta.persistence.*;
 import java.util.List;
 
 @Entity
-@Table(name = "vendors")
+@Table(name = "vendors", indexes = {
+        @Index(name = "idx_vendor_email", columnList = "email"),
+        @Index(name = "idx_vendor_name",  columnList = "name")
+})
 public class Vendor {
 
     @Id

@@ -31,12 +31,16 @@ public class VendorWebController {
 
     // ===================== Create Vendor =====================
     @PostMapping
-    public String createVendor(@ModelAttribute Vendor vendor) {
+    public String createVendor(@ModelAttribute Vendor vendor, org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
 
         if (vendor.getStatus() == null || vendor.getStatus().trim().isEmpty()) {
             vendor.setStatus("ACTIVE");  // default status
         }
-        vendorService.createVendor(vendor);
+        try {
+            vendorService.createVendor(vendor);
+        } catch (com.procurement.procurement.exception.BusinessException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
 
         return "redirect:/vendor";
     }
@@ -44,9 +48,13 @@ public class VendorWebController {
     // ===================== Delete Vendor =====================
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/delete/{id}")
-    public String deleteVendor(@PathVariable Long id) {
+    public String deleteVendor(@PathVariable Long id, org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
 
-        vendorService.deleteVendor(id);
+        try {
+            vendorService.deleteVendor(id);
+        } catch (com.procurement.procurement.exception.BusinessException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+        }
 
         return "redirect:/vendor";
     }

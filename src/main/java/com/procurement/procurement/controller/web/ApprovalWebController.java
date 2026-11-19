@@ -1,30 +1,27 @@
 package com.procurement.procurement.controller.web;
 
-import com.procurement.procurement.entity.user.User;
-import com.procurement.procurement.repository.user.UserRepository;
+import com.procurement.procurement.exception.BusinessException;
+import com.procurement.procurement.exception.UnauthorizedException;
 import com.procurement.procurement.service.procurement.ApprovalService;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequestMapping("/approval")
 public class ApprovalWebController {
 
     private final ApprovalService approvalService;
-    private final UserRepository userRepository;
 
-    public ApprovalWebController(ApprovalService approvalService, UserRepository userRepository) {
+    public ApprovalWebController(ApprovalService approvalService) {
         this.approvalService = approvalService;
-        this.userRepository = userRepository;
     }
 
     // ================= VIEW PAGE =================
     @GetMapping
     public String viewApprovals(Model model) {
-        model.addAttribute("approvals",
-                approvalService.getAllApprovals());
+        model.addAttribute("approvals", approvalService.getAllApprovals());
         return "approval";
     }
 
@@ -33,15 +30,14 @@ public class ApprovalWebController {
     public String updateApprovalStatus(
             @RequestParam Long id,
             @RequestParam String status,
-            @RequestParam(required = false) String comments) {
+            @RequestParam(required = false) String comments,
+            RedirectAttributes redirectAttributes) {
 
-        User currentUser = null;
-        if (SecurityContextHolder.getContext().getAuthentication() != null) {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            currentUser = userRepository.findByUsername(username).orElse(null);
+        try {
+            approvalService.updateApprovalStatus(id, status, comments, null);
+        } catch (BusinessException | UnauthorizedException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
-
-        approvalService.updateApprovalStatus(id, status, comments, currentUser);
 
         return "redirect:/approval";
     }

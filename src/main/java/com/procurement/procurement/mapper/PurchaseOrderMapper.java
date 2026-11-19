@@ -6,6 +6,7 @@ import com.procurement.procurement.entity.procurement.PurchaseOrder;
 import com.procurement.procurement.entity.procurement.PurchaseOrderItem;
 import com.procurement.procurement.entity.vendor.Vendor;
 
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 public class PurchaseOrderMapper {
@@ -17,7 +18,9 @@ public class PurchaseOrderMapper {
         PurchaseOrder po = new PurchaseOrder();
         po.setPoNumber(dto.getPoNumber());
         po.setVendor(vendor);
-        po.setStatus(dto.getStatus());
+        po.setStatus(dto.getStatus() != null ? dto.getStatus() : "PENDING");
+        po.setCreatedAt(LocalDateTime.now());
+        po.setUpdatedAt(LocalDateTime.now());
 
         // Map items
         if (dto.getItems() != null) {
@@ -43,21 +46,30 @@ public class PurchaseOrderMapper {
         if (po == null) return null;
 
         PurchaseOrderResponseDTO dto = new PurchaseOrderResponseDTO();
+        dto.setId(po.getId());
         dto.setPoNumber(po.getPoNumber());
-        dto.setVendorName(po.getVendor() != null ? po.getVendor().getName() : null);
         dto.setStatus(po.getStatus());
         dto.setCreatedAt(po.getCreatedAt());
         dto.setUpdatedAt(po.getUpdatedAt());
 
+        if (po.getVendor() != null) {
+            dto.setVendorId(po.getVendor().getId());
+            dto.setVendorName(po.getVendor().getName());
+        }
+
+        if (po.getRequisition() != null) {
+            dto.setRequisitionId(po.getRequisition().getId());
+            dto.setRequisitionNumber(po.getRequisition().getRequisitionNumber());
+        }
+
         if (po.getItems() != null) {
             dto.setItems(po.getItems().stream()
-                    .map(item -> {
-                        PurchaseOrderResponseDTO.Item itemDto = new PurchaseOrderResponseDTO.Item();
-                        itemDto.setProductName(item.getProductName());
-                        itemDto.setQuantity(item.getQuantity());
-                        itemDto.setUnitPrice(item.getUnitPrice());
-                        return itemDto;
-                    })
+                    .map(item -> new PurchaseOrderResponseDTO.Item(
+                            item.getId(),
+                            item.getProductName(),
+                            item.getQuantity(),
+                            item.getUnitPrice()
+                    ))
                     .collect(Collectors.toList()));
         }
 

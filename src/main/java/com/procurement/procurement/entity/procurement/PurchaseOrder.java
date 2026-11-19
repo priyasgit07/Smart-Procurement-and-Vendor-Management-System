@@ -7,7 +7,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "purchase_orders")
+@Table(name = "purchase_orders", indexes = {
+        @Index(name = "idx_po_number",        columnList = "poNumber"),
+        @Index(name = "idx_po_vendor_id",     columnList = "vendor_id"),
+        @Index(name = "idx_po_requisition_id", columnList = "requisition_id")
+})
 public class PurchaseOrder {
 
     @Id
@@ -19,6 +23,10 @@ public class PurchaseOrder {
     @ManyToOne
     @JoinColumn(name = "vendor_id")
     private Vendor vendor;
+
+    @ManyToOne
+    @JoinColumn(name = "requisition_id")
+    private Requisition requisition;
 
     private String status; // PENDING, APPROVED, REJECTED, COMPLETED
 
@@ -69,6 +77,14 @@ public class PurchaseOrder {
         this.vendor = vendor;
     }
 
+    public Requisition getRequisition() {
+        return requisition;
+    }
+
+    public void setRequisition(Requisition requisition) {
+        this.requisition = requisition;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -98,7 +114,7 @@ public class PurchaseOrder {
     }
 
     public void setItems(List<PurchaseOrderItem> items) {
-        this.items = items;
+        this.items = items != null ? new java.util.ArrayList<>(items) : new java.util.ArrayList<>();
     }
 
     public List<Approval> getApprovals() {
@@ -106,6 +122,6 @@ public class PurchaseOrder {
     }
 
     public void setApprovals(List<Approval> approvals) {
-        this.approvals = approvals;
+        this.approvals = approvals != null ? new java.util.ArrayList<>(approvals) : new java.util.ArrayList<>();
     }
 }

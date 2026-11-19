@@ -33,7 +33,7 @@ public class PurchaseOrderWebController {
     @GetMapping
     public String viewPurchaseOrders(Model model) {
         model.addAttribute("orders", purchaseOrderService.getAllPurchaseOrders());
-        model.addAttribute("vendors", vendorService.getAllVendors());
+        model.addAttribute("vendors", vendorService.getActiveVendors());
         return "purchase-order";
     }
 
@@ -43,39 +43,35 @@ public class PurchaseOrderWebController {
             @RequestParam(required = false) Long vendorId,
             @RequestParam(required = false) String productName,
             @RequestParam(required = false, defaultValue = "1") Integer quantity,
-            @RequestParam(required = false, defaultValue = "0.0") Double unitPrice) {
+            @RequestParam(required = false, defaultValue = "0.0") Double unitPrice,
+            org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
 
         PurchaseOrder po = new PurchaseOrder();
         po.setPoNumber(poNumber);
         po.setStatus("PENDING");
 
-        if (vendorId != null) {
-            try {
+        try {
+            if (vendorId != null) {
                 Vendor vendor = vendorService.getVendorById(vendorId);
                 po.setVendor(vendor);
-            } catch (Exception ignored) {
             }
+
+            if (productName != null && !productName.trim().isEmpty()) {
+                PurchaseOrderItem item = new PurchaseOrderItem();
+                item.setProductName(productName.trim());
+                item.setQuantity(quantity != null && quantity > 0 ? quantity : 1);
+                item.setUnitPrice(unitPrice != null && unitPrice >= 0 ? unitPrice : 0.0);
+                item.setPurchaseOrder(po);
+
+                List<PurchaseOrderItem> items = new ArrayList<>();
+                items.add(item);
+                po.setItems(items);
+            }
+
+            purchaseOrderService.createPurchaseOrder(po);
+        } catch (com.procurement.procurement.exception.BusinessException | com.procurement.procurement.exception.ResourceNotFoundException ex) {
+            redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
         }
-
-        if (productName != null && !productName.trim().isEmpty()) {
-            PurchaseOrderItem item = new PurchaseOrderItem();
-            item.setProductName(productName.trim());
-            item.setQuantity(quantity != null && quantity > 0 ? quantity : 1);
-            item.setUnitPrice(unitPrice != null && unitPrice >= 0 ? unitPrice : 0.0);
-            item.setPurchaseOrder(po);
-
-            List<PurchaseOrderItem> items = new ArrayList<>();
-            items.add(item);
-            po.setItems(items);
-        }
-
-        PurchaseOrder saved = purchaseOrderService.createPurchaseOrder(po);
-
-        // Auto create approval record for PO
-        Approval approval = new Approval();
-        approval.setPurchaseOrder(saved);
-        approval.setStatus("PENDING");
-        approvalService.createApproval(approval);
 
         return "redirect:/purchase-order";
     }
